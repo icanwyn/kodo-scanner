@@ -73,17 +73,18 @@ export default function SettingsPage() {
       <div className="glass p-5 text-sm text-[var(--kodo-ink-muted)] space-y-2">
         <h2 className="font-medium text-[var(--kodo-ink)]">Environment</h2>
         <p>
-          Copy <span className="mono">.env.example</span> →{" "}
-          <span className="mono">.env</span>. Optional:{" "}
-          <span className="mono">XAI_API_KEY</span> for deep analysis,{" "}
-          <span className="mono">FINNHUB_API_KEY</span> etc. for cascade
-          upgrades.
+          Server keys live in env. Optional:{" "}
+          <span className="mono">XAI_API_KEY</span> for deep analysis.
         </p>
         <p>
-          Runtime: long-lived Node only (
-          <span className="mono">npm run dev</span> /{" "}
-          <span className="mono">next start</span>). SQLite is not supported on
-          Vercel serverless.
+          <strong className="text-[var(--kodo-ink)]">Site gate:</strong> when{" "}
+          <span className="mono">APP_PASSWORD</span> is set, visitors must unlock
+          at <span className="mono">/login</span>. This keeps strangers out; after
+          login the journal/watchlist remain one shared workspace (no per-user
+          accounts).
+        </p>
+        <p>
+          Production uses Postgres (Neon). Local: Docker Postgres or Neon URL.
         </p>
       </div>
     </div>

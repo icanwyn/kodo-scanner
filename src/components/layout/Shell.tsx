@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { clsx } from "clsx";
+import { useEffect, useState } from "react";
 
 const links = [
   { href: "/", label: "Dashboard" },
@@ -15,6 +16,32 @@ const links = [
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const isLogin = pathname === "/login";
+  const [gated, setGated] = useState(false);
+
+  useEffect(() => {
+    if (isLogin) return;
+    fetch("/api/auth/status")
+      .then((r) => r.json())
+      .then((j) => setGated(Boolean(j.gated)))
+      .catch(() => null);
+  }, [isLogin, pathname]);
+
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.replace("/login");
+    router.refresh();
+  }
+
+  if (isLogin) {
+    return (
+      <>
+        <div className="kodo-bg" aria-hidden />
+        <main className="relative z-10">{children}</main>
+      </>
+    );
+  }
 
   return (
     <>
@@ -41,7 +68,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           </Link>
-          <nav className="flex flex-wrap gap-1">
+          <nav className="flex flex-wrap gap-1 items-center">
             {links.map((l) => {
               const active =
                 l.href === "/"
@@ -57,6 +84,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 </Link>
               );
             })}
+            {gated && (
+              <button
+                type="button"
+                className="btn btn-ghost text-xs ml-1"
+                onClick={logout}
+              >
+                Lock
+              </button>
+            )}
           </nav>
         </div>
       </header>
@@ -64,8 +100,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <footer className="relative z-10 max-w-[1280px] mx-auto px-4 md:px-8 pb-10">
         <p className="disclaimer">
           Not financial advice. Educational and journal use only. Market data is
-          delayed/free-tier by default. Personal local use — do not redistribute
-          vendor data. Long-lived Node only (not serverless).
+          delayed/free-tier by default. Site password protects this instance;
+          journal data is still one shared workspace after login.
         </p>
       </footer>
     </>
