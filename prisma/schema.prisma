@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Local: docker-compose Postgres, or Neon
+// Vercel: Neon / Vercel Postgres DATABASE_URL (pooled + ssl)
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TradeSide {
+  LONG
+  SHORT
+}
+
+enum TradeStatus {
+  OPEN
+  CLOSED
+  CANCELLED
+}
+
+enum ProcessGrade {
+  A
+  B
+  C
+  D
+  F
+}
+
+model WatchlistItem {
+  id        String   @id @default(cuid())
+  symbol    String   @unique
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ScanSnapshot {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  filtersJson String
+  regimeJson  String
+  resultsJson String
+}
+
+model Trade {
+  id               String      @id @default(cuid())
+  symbol           String
+  side             TradeSide
+  status           TradeStatus @default(OPEN)
+  timeframe        String      @default("1D")
+  setupType        String?
+  quantity         Float
+  entryPrice       Float
+  stopPrice        Float?
+  stopAtEntry      Float?
+  targetPrices     String?
+  exitPrice        Float?
+  openedAt         DateTime    @default(now())
+  closedAt         DateTime?
+  fees             Float       @default(0)
+  thesisSummary    String?
+  notes            String?
+  analysisJson     String?
+  scanFactorsJson  String?
+  entryAttribution String?
+  tags             String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  postmortem       Postmortem?
+}
+
+model Postmortem {
+  id            String        @id @default(cuid())
+  tradeId       String        @unique
+  trade         Trade         @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  whatWentRight String?
+  whatWentWrong String?
+  emotions      String?
+  processGrade  ProcessGrade?
+  lessons       String?
+  wouldRepeat   Boolean?
+  bodyMarkdown  String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
