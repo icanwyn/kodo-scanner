@@ -10,6 +10,7 @@ import {
   clearScanSession,
   type ScanFiltersState,
 } from "@/lib/scan/session";
+import { attachApexToResults } from "@/lib/apex/attach";
 
 export default function ScannerPage() {
   const [hydrated, setHydrated] = useState(false);
@@ -35,8 +36,14 @@ export default function ScannerPage() {
   useEffect(() => {
     const session = loadScanSession();
     if (session) {
-      setResults(session.results ?? []);
-      setRegime(session.regime ?? null);
+      let restored = session.results ?? [];
+      const reg = session.regime ?? null;
+      // Backfill APEX on older sessions that predate the wire-up
+      if (reg && restored.some((r) => !r.apex)) {
+        restored = attachApexToResults(restored, reg);
+      }
+      setResults(restored);
+      setRegime(reg);
       setMeta(session.meta ?? null);
       setRanAt(session.ranAt ?? null);
       if (session.filters) {

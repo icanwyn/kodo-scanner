@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { createLimiter } from "@/lib/providers/limit";
 import { scoreSymbol, structuralBiasFromCandles } from "./scorer";
 import { logger } from "@/lib/log";
+import { attachApexToResults } from "@/lib/apex/attach";
 
 const limit = createLimiter(4);
 
@@ -104,8 +105,9 @@ export async function runScan(
   );
 
   results.sort((a, b) => b.confluenceScore - a.confluenceScore);
+  const withApex = attachApexToResults(results, regime);
   return {
-    results,
+    results: withApex,
     universeSize: symbols.length,
     symbolsScanned: scanned,
   };

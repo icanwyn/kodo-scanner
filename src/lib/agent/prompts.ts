@@ -18,6 +18,7 @@ Trading rules:
 - Stops on correct side of entry (below for long, above for short)
 - Prefer risk:reward >= 1.5 when proposing a trade; otherwise lean avoid
 - Entry zone within ~5% of the provided lastPrice
+- When apexOptionsPlan is provided, align checklist and narrative with that options structure (CORE wheel CSP/CC or SAT defined-risk spread). Do not invent 0DTE or naked short calls.
 `;
 
 export function buildUserMessage(ctx: {
@@ -28,6 +29,8 @@ export function buildUserMessage(ctx: {
   confluenceScore: number;
   sideBias: string;
   headlines: string[];
+  apexPrimary?: { engine: string; structure: string; notes: string } | null;
+  ivRankProxy?: number;
 }) {
   return JSON.stringify(
     {
@@ -39,6 +42,8 @@ export function buildUserMessage(ctx: {
       marketRegime: ctx.regime,
       factorBreakdown: ctx.factors,
       recentHeadlines: ctx.headlines,
+      apexOptionsPlan: ctx.apexPrimary ?? null,
+      ivRankProxy: ctx.ivRankProxy ?? null,
       exampleShape: {
         symbol: ctx.symbol,
         bias: "long",

@@ -71,6 +71,18 @@ export default function SettingsPage() {
       </div>
 
       <div className="glass p-5 text-sm text-[var(--kodo-ink-muted)] space-y-2">
+        <h2 className="font-medium text-[var(--kodo-ink)]">APEX options</h2>
+        <p>
+          Dual-engine Wheel + defined-risk spreads. Account equity, drawdown
+          gates, and default spread width live in browser storage — edit on the{" "}
+          <a href="/apex" className="text-[var(--kodo-cyan)]">
+            APEX desk
+          </a>
+          . Scanner cards and analysis attach structures automatically.
+        </p>
+      </div>
+
+      <div className="glass p-5 text-sm text-[var(--kodo-ink-muted)] space-y-2">
         <h2 className="font-medium text-[var(--kodo-ink)]">Environment</h2>
         <p>
           Server keys live in env. Optional:{" "}

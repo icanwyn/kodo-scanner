@@ -5,6 +5,7 @@ import type { ScoredSetup } from "@/types";
 import { ScoreRing } from "./ScoreRing";
 import { useState } from "react";
 import { saveSetupSnapshot } from "@/lib/scan/session";
+import { ApexChip, ApexPanel } from "@/components/apex/ApexPanel";
 
 export function SetupCard({
   setup,
@@ -15,6 +16,7 @@ export function SetupCard({
 }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [showApex, setShowApex] = useState(false);
   const up = setup.changePct >= 0;
   const sideColor =
     setup.sideBias === "long"
@@ -44,6 +46,7 @@ export function SetupCard({
   async function logTrade() {
     setBusy(true);
     try {
+      const apex = setup.apex;
       const res = await fetch("/api/trades", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -56,10 +59,18 @@ export function SetupCard({
             setup.sideBias === "short"
               ? setup.price * 1.02
               : setup.price * 0.98,
-          thesisSummary: `Scanner confluence ${setup.confluenceScore.toFixed(1)} · ${setup.sideBias}`,
+          thesisSummary: apex?.primary
+            ? `APEX ${apex.primary.structure} · conf ${setup.confluenceScore.toFixed(1)} · ${setup.sideBias}`
+            : `Scanner confluence ${setup.confluenceScore.toFixed(1)} · ${setup.sideBias}`,
           scanFactorsJson: JSON.stringify(setup.factors),
-          setupType: "scanner_confluence",
+          setupType: apex?.primary
+            ? `apex_${apex.primary.structure.toLowerCase()}`
+            : "scanner_confluence",
           entryAttribution: JSON.stringify(setup.attribution),
+          analysisJson: apex ? JSON.stringify({ apex }) : undefined,
+          tags: apex?.primary
+            ? ["apex", apex.primary.engine.toLowerCase(), setup.sideBias]
+            : undefined,
         }),
       });
       if (!res.ok) throw new Error("log failed");
@@ -76,7 +87,7 @@ export function SetupCard({
     <article className="glass p-4 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Link
               href={`/analysis/${setup.symbol}?from=scanner`}
               onClick={rememberSetup}
@@ -90,6 +101,7 @@ export function SetupCard({
             >
               {setup.sideBias}
             </span>
+            <ApexChip apex={setup.apex} />
           </div>
           <div className="mono text-sm mt-1">
             ${setup.price.toFixed(2)}{" "}
@@ -121,6 +133,12 @@ export function SetupCard({
         ))}
       </div>
 
+      {setup.apex?.primary && (
+        <p className="text-[11px] text-[var(--kodo-ink-muted)] leading-snug line-clamp-2">
+          {setup.apex.primary.notes}
+        </p>
+      )}
+
       <div className="flex flex-wrap gap-2 mt-auto pt-1">
         <Link
           href={`/analysis/${setup.symbol}?from=scanner`}
@@ -129,6 +147,15 @@ export function SetupCard({
         >
           Deep analysis
         </Link>
+        {setup.apex && (
+          <button
+            className="btn btn-ghost"
+            type="button"
+            onClick={() => setShowApex((v) => !v)}
+          >
+            {showApex ? "Hide APEX" : "APEX size"}
+          </button>
+        )}
         <button className="btn btn-ghost" disabled={busy} onClick={logTrade}>
           Log trade
         </button>
@@ -141,6 +168,16 @@ export function SetupCard({
           </span>
         )}
       </div>
+
+      {showApex && setup.apex && (
+        <ApexPanel
+          symbol={setup.symbol}
+          price={setup.price}
+          apex={setup.apex}
+          compact
+          onLogged={onLogged}
+        />
+      )}
     </article>
   );
 }

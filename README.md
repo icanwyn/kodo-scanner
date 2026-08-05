@@ -62,6 +62,16 @@ Open [http://localhost:3000](http://localhost:3000).
 4. **Deep analysis** — Grok thesis (cached per session to save tokens)  
 5. **Journal** — log, close, cancel, R-multiple, post-mortems  
 6. **Stats** — win rate, expectancy, profit factor, equity curve  
+7. **APEX Compound** — options structure + sizing on every setup (Wheel CORE + defined-risk SAT); desk at `/apex`  
+
+### APEX (options)
+
+- Scan engine attaches `apex` to each `ScoredSetup` from regime, VIX→IVR proxy, confluence, and side bias.  
+- Setup cards: **APEX chip** + **APEX size** ticket (1% risk, DD kill switch).  
+- Analysis page: full APEX panel; Grok prompt includes primary structure.  
+- Journal logs use `setupType: apex_*` and tags `apex`.  
+- Account prefs: browser `localStorage` key `kodo_apex_account_v1`.  
+
 
 ## Deploy (Vercel)
 

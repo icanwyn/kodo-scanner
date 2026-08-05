@@ -6,6 +6,7 @@ import { runDeepAnalysis } from "@/lib/agent/client";
 import { cacheGet, cacheSet, TTL } from "@/lib/cache";
 import { getEnv } from "@/lib/env";
 import type { MarketRegime } from "@/types";
+import { buildApexRecommendation } from "@/lib/apex/attach";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -77,6 +78,7 @@ export async function POST(req: Request) {
         ],
   });
   setup.sideBias = structural;
+  setup.apex = buildApexRecommendation(setup, regime);
 
   const analysis = await runDeepAnalysis({
     symbol,
@@ -86,6 +88,14 @@ export async function POST(req: Request) {
     confluenceScore: setup.confluenceScore,
     sideBias: structural,
     headlines: news.map((n) => n.title).slice(0, 8),
+    apexPrimary: setup.apex.primary
+      ? {
+          engine: setup.apex.primary.engine,
+          structure: setup.apex.primary.structure,
+          notes: setup.apex.primary.notes,
+        }
+      : null,
+    ivRankProxy: setup.apex.ivRankProxy,
   });
 
   const model =

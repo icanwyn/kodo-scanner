@@ -3,9 +3,15 @@
 import { Suspense, use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { Candle, FactorResult, TradeThesis } from "@/types";
+import type {
+  ApexRecommendation,
+  Candle,
+  FactorResult,
+  TradeThesis,
+} from "@/types";
 import { PriceChart } from "@/components/charts/PriceChart";
 import { ScoreRing } from "@/components/scanner/ScoreRing";
+import { ApexPanel } from "@/components/apex/ApexPanel";
 import {
   loadAnalysisSession,
   loadSetupSnapshot,
@@ -51,6 +57,9 @@ function AnalysisInner({ symbol }: { symbol: string }) {
   );
   const [cachedAt, setCachedAt] = useState<string | null>(
     sessionAnalysis?.savedAt ?? null
+  );
+  const [apex, setApex] = useState<ApexRecommendation | null | undefined>(
+    cachedSetup?.apex
   );
 
   function goBack() {
@@ -136,6 +145,7 @@ function AnalysisInner({ symbol }: { symbol: string }) {
           setScore(nextScore);
           setSideBias(nextBias);
           setPrice(nextPrice);
+          if (aJson.setup.apex) setApex(aJson.setup.apex);
         }
         setThesis(nextThesis);
         setNews(nextNews);
@@ -271,6 +281,14 @@ function AnalysisInner({ symbol }: { symbol: string }) {
           </div>
         )}
       </div>
+
+      {(apex || price > 0) && (
+        <ApexPanel
+          symbol={symbol}
+          price={price || cachedSetup?.price || 0}
+          apex={apex}
+        />
+      )}
 
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="glass p-5">

@@ -39,6 +39,29 @@ export interface FactorResult {
   value?: number | string;
 }
 
+/** APEX options plan (from src/lib/apex). */
+export interface ApexPlanDto {
+  engine: "CORE" | "SATELLITE";
+  structure: string;
+  priority: number;
+  notes: string;
+  sizeHint: number;
+  dte?: [number, number];
+  delta?: [number, number];
+  minConfluence?: number;
+}
+
+export interface ApexRecommendation {
+  primary: ApexPlanDto | null;
+  plans: ApexPlanDto[];
+  ivRankProxy: number;
+  regimeLabel: MarketRegimeLabel;
+  coreEligible: boolean;
+  satEligible: boolean;
+  suggestedCspStrike?: number;
+  notes: string[];
+}
+
 export interface ScoredSetup {
   symbol: string;
   sideBias: "long" | "short" | "neutral";
@@ -50,6 +73,8 @@ export interface ScoredSetup {
   marketCap?: number;
   sector?: string;
   attribution: DataAttribution[];
+  /** APEX Compound options structure for this setup + regime */
+  apex?: ApexRecommendation;
 }
 
 export interface ScanFilters {

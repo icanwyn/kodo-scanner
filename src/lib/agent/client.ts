@@ -75,6 +75,8 @@ export async function runDeepAnalysis(input: {
   confluenceScore: number;
   sideBias: string;
   headlines: string[];
+  apexPrimary?: { engine: string; structure: string; notes: string } | null;
+  ivRankProxy?: number;
 }): Promise<
   | { ok: true; thesis: ThesisParsed; cached: boolean; model: string }
   | { ok: false; code: string; message: string; model?: string }
