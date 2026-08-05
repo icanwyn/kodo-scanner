@@ -49,7 +49,7 @@ export function saveApexAccount(
   prefs: Partial<ApexAccountPrefs>
 ): ApexAccountPrefs {
   const prev = loadApexAccount();
-  let next = { ...prev, ...prefs };
+  const next = { ...prev, ...prefs };
 
   // Switching into Velocity: bump planning rate to profile default if still on compound default
   if (prefs.mode === "velocity" && prev.mode !== "velocity") {
