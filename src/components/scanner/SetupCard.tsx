@@ -133,9 +133,9 @@ export function SetupCard({
         ))}
       </div>
 
-      {setup.apex?.primary && (
+      {(setup.apex?.velocityPrimary || setup.apex?.primary) && (
         <p className="text-[11px] text-[var(--kodo-ink-muted)] leading-snug line-clamp-2">
-          {setup.apex.primary.notes}
+          {setup.apex.primary?.notes ?? setup.apex.velocityPrimary?.notes}
         </p>
       )}
 

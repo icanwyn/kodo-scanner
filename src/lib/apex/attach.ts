@@ -1,14 +1,17 @@
 import type { MarketRegime, ScoredSetup } from "@/types";
 import type { ApexRecommendation } from "@/types";
 import {
+  getProfile,
   ivRankFromVix,
   isCoreUniverse,
   pickPrimary,
   selectStructure,
+  type ApexProfileId,
 } from "./engine";
 
 /**
  * Attach APEX structure plans to a scored equity setup using live regime.
+ * Server attaches both profile lenses; client sizes with user's selected mode.
  * IV Rank is proxied from VIX when option chains are unavailable.
  */
 export function buildApexRecommendation(
@@ -16,25 +19,32 @@ export function buildApexRecommendation(
     ScoredSetup,
     "symbol" | "sideBias" | "confluenceScore" | "price"
   >,
-  regime: MarketRegime
+  regime: MarketRegime,
+  profileId: ApexProfileId = "compound"
 ): ApexRecommendation {
+  const profile = getProfile(profileId);
   const ivRankProxy = ivRankFromVix(regime.vixLevel);
   const plans = selectStructure({
     regime: regime.label,
     ivRank: ivRankProxy,
     bias: setup.sideBias,
     confluence: setup.confluenceScore,
+    profileId,
   });
 
-  const coreEligible = isCoreUniverse(setup.symbol);
-  const primary = pickPrimary(plans, setup.confluenceScore, setup.symbol);
+  const coreEligible = isCoreUniverse(setup.symbol, profile);
+  const primary = pickPrimary(
+    plans,
+    setup.confluenceScore,
+    setup.symbol,
+    profileId
+  );
 
-  // Soft filter: non-core names shouldn't lead with CSP as primary
   let adjustedPrimary = primary;
   if (
     primary?.engine === "CORE" &&
     !coreEligible &&
-    setup.confluenceScore >= 70
+    setup.confluenceScore >= profile.minConfluenceSat
   ) {
     const sat = plans.find(
       (p) =>
@@ -53,9 +63,26 @@ export function buildApexRecommendation(
       (p.minConfluence == null || setup.confluenceScore >= p.minConfluence)
   );
 
+  // Also compute velocity primary for UI toggle without re-scan
+  const velPlans = selectStructure({
+    regime: regime.label,
+    ivRank: ivRankProxy,
+    bias: setup.sideBias,
+    confluence: setup.confluenceScore,
+    profileId: "velocity",
+  });
+  const velPrimary = pickPrimary(
+    velPlans,
+    setup.confluenceScore,
+    setup.symbol,
+    "velocity"
+  );
+
   return {
     primary: adjustedPrimary,
     plans,
+    velocityPrimary: velPrimary,
+    velocityPlans: velPlans,
     ivRankProxy,
     regimeLabel: regime.label,
     coreEligible,
@@ -69,6 +96,7 @@ export function buildApexRecommendation(
       regime.vixContext === "crisis" || regime.vixContext === "elevated"
         ? "Elevated vol — favor credit structures, half size on crisis"
         : "Normal/low vol context",
+      "Toggle Compound vs Velocity on APEX desk for sizing & SAT priority",
     ],
   };
 }

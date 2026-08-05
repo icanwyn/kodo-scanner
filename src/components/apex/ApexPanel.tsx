@@ -4,7 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import type { ApexRecommendation } from "@/types";
 import {
   buildTicket,
+  getProfile,
+  profileLabel,
   structureLabel,
+  type ApexProfileId,
   type ApexStructure,
 } from "@/lib/apex/engine";
 import {
@@ -26,28 +29,61 @@ function shortStructure(s: string): string {
   return map[s] ?? structureLabel(s);
 }
 
+function resolvePrimary(
+  apex: ApexRecommendation,
+  mode: ApexProfileId
+) {
+  if (mode === "velocity" && apex.velocityPrimary) {
+    return {
+      primary: apex.velocityPrimary,
+      plans: apex.velocityPlans?.length ? apex.velocityPlans : apex.plans,
+    };
+  }
+  return { primary: apex.primary, plans: apex.plans };
+}
+
 export function ApexChip({ apex }: { apex?: ApexRecommendation | null }) {
-  if (!apex?.primary) {
+  const [mode, setMode] = useState<ApexProfileId>("compound");
+  useEffect(() => {
+    setMode(loadApexAccount().mode);
+  }, []);
+
+  if (!apex) {
     return (
       <span className="chip text-[10px] text-[var(--kodo-ink-muted)]">
         APEX —
       </span>
     );
   }
-  const isSat = apex.primary.engine === "SATELLITE";
+  const { primary } = resolvePrimary(apex, mode);
+  if (!primary) {
+    return (
+      <span className="chip text-[10px] text-[var(--kodo-ink-muted)]">
+        APEX —
+      </span>
+    );
+  }
+  const isSat = primary.engine === "SATELLITE";
+  const isVel = mode === "velocity";
   return (
     <span
       className="chip mono text-[10px]"
-      title={apex.primary.notes}
+      title={primary.notes}
       style={{
-        color: isSat ? "var(--kodo-magenta)" : "var(--kodo-cyan)",
-        borderColor: isSat
-          ? "rgba(255,43,214,0.35)"
-          : "rgba(45,226,230,0.35)",
+        color: isVel
+          ? "var(--kodo-warning)"
+          : isSat
+            ? "var(--kodo-magenta)"
+            : "var(--kodo-cyan)",
+        borderColor: isVel
+          ? "rgba(240,180,41,0.4)"
+          : isSat
+            ? "rgba(255,43,214,0.35)"
+            : "rgba(45,226,230,0.35)",
       }}
     >
-      APEX · {apex.primary.engine === "CORE" ? "CORE" : "SAT"} ·{" "}
-      {shortStructure(apex.primary.structure)}
+      {isVel ? "VEL" : "APEX"} · {primary.engine === "CORE" ? "CORE" : "SAT"} ·{" "}
+      {shortStructure(primary.structure)}
     </span>
   );
 }
@@ -75,9 +111,13 @@ export function ApexPanel({
     setAcct(loadApexAccount());
   }, []);
 
+  const mode: ApexProfileId = acct?.mode === "velocity" ? "velocity" : "compound";
+  const profile = getProfile(mode);
+  const resolved = apex ? resolvePrimary(apex, mode) : null;
+
   useEffect(() => {
-    if (apex?.primary?.structure) setStructure(apex.primary.structure);
-  }, [apex?.primary?.structure, symbol]);
+    if (resolved?.primary?.structure) setStructure(resolved.primary.structure);
+  }, [resolved?.primary?.structure, symbol, mode]);
 
   const ticket = useMemo(() => {
     if (!acct || !structure) return null;
@@ -101,15 +141,24 @@ export function ApexPanel({
       mtdReturn: acct.mtdReturnPct / 100,
       peakDrawdown: acct.peakDrawdownPct / 100,
       cashUsedCore: acct.cashUsedCore,
+      profileId: mode,
     });
-  }, [acct, structure, symbol, price, apex?.suggestedCspStrike]);
+  }, [acct, structure, symbol, price, apex?.suggestedCspStrike, mode]);
 
-  if (!apex) {
+  if (!apex || !resolved) {
     return (
       <div className="glass p-4 text-sm text-[var(--kodo-ink-muted)]">
         APEX plans attach after a scan or analysis with regime context.
       </div>
     );
+  }
+
+  const displayPrimary = resolved.primary;
+  const displayPlans = resolved.plans;
+
+  function setMode(next: ApexProfileId) {
+    const saved = saveApexAccount({ mode: next });
+    setAcct(saved);
   }
 
   async function logApex() {
@@ -123,12 +172,12 @@ export function ApexPanel({
         typeof size.contracts === "number"
           ? Math.max(1, size.contracts) * 100
           : 100;
+
       const isShortPremium =
-        structure.includes("PUT") && structure.includes("CREDIT")
-          ? true
-          : structure === "CASH_SECURED_PUT" ||
-            structure === "COVERED_CALL" ||
-            structure.includes("BEAR_CALL");
+        (structure.includes("PUT") && structure.includes("CREDIT")) ||
+        structure === "CASH_SECURED_PUT" ||
+        structure === "COVERED_CALL" ||
+        structure.includes("BEAR_CALL");
 
       const side =
         structure.includes("BEAR") || structure === "COVERED_CALL"
@@ -143,20 +192,25 @@ export function ApexPanel({
           side,
           quantity: qty,
           entryPrice: price,
-          stopPrice:
-            side === "LONG" ? price * 0.97 : price * 1.03,
-          thesisSummary: `APEX ${structure} · ${rec.primary?.notes?.slice(0, 160) ?? ""} · IVR~${rec.ivRankProxy}`,
+          stopPrice: side === "LONG" ? price * 0.97 : price * 1.03,
+          thesisSummary: `APEX ${mode.toUpperCase()} ${structure} · ${displayPrimary?.notes?.slice(0, 140) ?? ""} · IVR~${rec.ivRankProxy}`,
           notes: JSON.stringify({
             apex: true,
+            mode,
             structure,
-            engine: rec.plans.find((p) => p.structure === structure)?.engine,
+            engine: displayPlans.find((p) => p.structure === structure)?.engine,
             ticket,
             ivRankProxy: rec.ivRankProxy,
             regime: rec.regimeLabel,
           }),
-          setupType: `apex_${structure.toLowerCase()}`,
-          tags: ["apex", structure.toLowerCase(), isShortPremium ? "premium" : "debit"],
-          analysisJson: JSON.stringify({ apex: rec, ticket }),
+          setupType: `apex_${mode}_${structure.toLowerCase()}`,
+          tags: [
+            "apex",
+            mode,
+            structure.toLowerCase(),
+            isShortPremium ? "premium" : "debit",
+          ],
+          analysisJson: JSON.stringify({ apex: rec, ticket, mode }),
         }),
       });
       if (!res.ok) throw new Error("fail");
@@ -175,35 +229,91 @@ export function ApexPanel({
         <div>
           <h2 className="font-medium text-sm md:text-base">
             APEX options ·{" "}
+            <span
+              className="font-semibold"
+              style={{
+                color:
+                  mode === "velocity"
+                    ? "var(--kodo-warning)"
+                    : "var(--kodo-cyan)",
+              }}
+            >
+              {profileLabel(mode)}
+            </span>
             <span className="text-[var(--kodo-ink-muted)] font-normal">
-              {apex.regimeLabel.replaceAll("_", " ")}
+              {" "}
+              · {apex.regimeLabel.replaceAll("_", " ")}
             </span>
           </h2>
           <p className="text-xs text-[var(--kodo-ink-muted)] mt-0.5">
-            IVR proxy {apex.ivRankProxy}
-            {apex.coreEligible ? " · CORE universe" : " · SAT-only name"}
-            {apex.satEligible ? " · SAT ok" : ""}
+            Risk {(profile.riskPerTrade * 100).toFixed(1)}%/trade · day{" "}
+            {(profile.riskPerDay * 100).toFixed(0)}% · max {profile.maxSatPositions}{" "}
+            SAT · IVR~{apex.ivRankProxy}
+            {apex.coreEligible ? " · CORE ok" : ""}
           </p>
         </div>
-        {compact && (
-          <button
-            type="button"
-            className="btn btn-ghost text-xs"
-            onClick={() => setOpen((o) => !o)}
-          >
-            {open ? "Hide" : "Size ticket"}
-          </button>
-        )}
+        <div className="flex flex-wrap gap-2 items-center">
+          <div className="flex rounded-full border border-white/10 overflow-hidden text-[11px]">
+            <button
+              type="button"
+              className="px-3 py-1"
+              style={{
+                background:
+                  mode === "compound" ? "rgba(45,226,230,0.2)" : "transparent",
+                color:
+                  mode === "compound"
+                    ? "var(--kodo-cyan)"
+                    : "var(--kodo-ink-muted)",
+              }}
+              onClick={() => setMode("compound")}
+            >
+              Compound
+            </button>
+            <button
+              type="button"
+              className="px-3 py-1"
+              style={{
+                background:
+                  mode === "velocity" ? "rgba(240,180,41,0.2)" : "transparent",
+                color:
+                  mode === "velocity"
+                    ? "var(--kodo-warning)"
+                    : "var(--kodo-ink-muted)",
+              }}
+              onClick={() => setMode("velocity")}
+            >
+              Velocity
+            </button>
+          </div>
+          {compact && (
+            <button
+              type="button"
+              className="btn btn-ghost text-xs"
+              onClick={() => setOpen((o) => !o)}
+            >
+              {open ? "Hide" : "Size ticket"}
+            </button>
+          )}
+        </div>
       </div>
 
-      {apex.primary && (
+      {mode === "velocity" && (
+        <p className="text-[11px] rounded-lg px-3 py-2 border border-[rgba(240,180,41,0.3)] bg-[rgba(240,180,41,0.08)] text-[var(--kodo-warning)]">
+          Velocity: higher risk of large drawdowns. Still no 0DTE / naked shorts.
+          Switch back to Compound anytime for the slower path.
+        </p>
+      )}
+
+      {displayPrimary && (
         <div
           className="rounded-xl px-3 py-2 text-sm border"
           style={{
             borderColor:
-              apex.primary.engine === "SATELLITE"
-                ? "rgba(255,43,214,0.25)"
-                : "rgba(45,226,230,0.25)",
+              mode === "velocity"
+                ? "rgba(240,180,41,0.3)"
+                : displayPrimary.engine === "SATELLITE"
+                  ? "rgba(255,43,214,0.25)"
+                  : "rgba(45,226,230,0.25)",
             background: "rgba(0,0,0,0.2)",
           }}
         >
@@ -212,32 +322,34 @@ export function ApexPanel({
               className="chip mono text-[10px]"
               style={{
                 color:
-                  apex.primary.engine === "SATELLITE"
-                    ? "var(--kodo-magenta)"
-                    : "var(--kodo-cyan)",
+                  mode === "velocity"
+                    ? "var(--kodo-warning)"
+                    : displayPrimary.engine === "SATELLITE"
+                      ? "var(--kodo-magenta)"
+                      : "var(--kodo-cyan)",
               }}
             >
-              PRIMARY · {apex.primary.engine}
+              PRIMARY · {displayPrimary.engine}
             </span>
             <strong className="text-sm">
-              {shortStructure(apex.primary.structure)}
+              {shortStructure(displayPrimary.structure)}
             </strong>
             <span className="text-[10px] text-[var(--kodo-ink-muted)] mono">
-              P{apex.primary.priority}
-              {apex.primary.dte
-                ? ` · ${apex.primary.dte[0]}–${apex.primary.dte[1]} DTE`
+              P{displayPrimary.priority}
+              {displayPrimary.dte
+                ? ` · ${displayPrimary.dte[0]}–${displayPrimary.dte[1]} DTE`
                 : ""}
             </span>
           </div>
           <p className="text-xs text-[var(--kodo-ink-muted)] leading-relaxed">
-            {apex.primary.notes}
+            {displayPrimary.notes}
           </p>
         </div>
       )}
 
       {!compact && (
         <div className="flex flex-wrap gap-1.5">
-          {apex.plans.slice(0, 5).map((p) => (
+          {displayPlans.slice(0, 6).map((p) => (
             <button
               key={p.structure + p.engine}
               type="button"
@@ -245,9 +357,7 @@ export function ApexPanel({
               style={{
                 opacity: structure === p.structure ? 1 : 0.65,
                 borderColor:
-                  structure === p.structure
-                    ? "var(--kodo-cyan)"
-                    : undefined,
+                  structure === p.structure ? "var(--kodo-cyan)" : undefined,
               }}
               onClick={() => setStructure(p.structure)}
               title={p.notes}
@@ -268,10 +378,9 @@ export function ApexPanel({
                 type="number"
                 value={acct.equity}
                 onChange={(e) => {
-                  const next = saveApexAccount({
-                    equity: Number(e.target.value) || 0,
-                  });
-                  setAcct(next);
+                  setAcct(
+                    saveApexAccount({ equity: Number(e.target.value) || 0 })
+                  );
                 }}
               />
             </label>
@@ -283,10 +392,11 @@ export function ApexPanel({
                 value={acct.mtdReturnPct}
                 step={0.1}
                 onChange={(e) => {
-                  const next = saveApexAccount({
-                    mtdReturnPct: Number(e.target.value) || 0,
-                  });
-                  setAcct(next);
+                  setAcct(
+                    saveApexAccount({
+                      mtdReturnPct: Number(e.target.value) || 0,
+                    })
+                  );
                 }}
               />
             </label>
@@ -298,10 +408,11 @@ export function ApexPanel({
                 value={acct.peakDrawdownPct}
                 step={0.1}
                 onChange={(e) => {
-                  const next = saveApexAccount({
-                    peakDrawdownPct: Number(e.target.value) || 0,
-                  });
-                  setAcct(next);
+                  setAcct(
+                    saveApexAccount({
+                      peakDrawdownPct: Number(e.target.value) || 0,
+                    })
+                  );
                 }}
               />
             </label>
@@ -313,12 +424,12 @@ export function ApexPanel({
                   type="number"
                   value={acct.defaultSpreadWidth}
                   step={0.5}
-                  title="Spread width"
                   onChange={(e) => {
-                    const next = saveApexAccount({
-                      defaultSpreadWidth: Number(e.target.value) || 0,
-                    });
-                    setAcct(next);
+                    setAcct(
+                      saveApexAccount({
+                        defaultSpreadWidth: Number(e.target.value) || 0,
+                      })
+                    );
                   }}
                 />
                 <input
@@ -326,12 +437,12 @@ export function ApexPanel({
                   type="number"
                   value={acct.defaultCredit}
                   step={0.05}
-                  title="Credit or debit $/share"
                   onChange={(e) => {
-                    const next = saveApexAccount({
-                      defaultCredit: Number(e.target.value) || 0,
-                    });
-                    setAcct(next);
+                    setAcct(
+                      saveApexAccount({
+                        defaultCredit: Number(e.target.value) || 0,
+                      })
+                    );
                   }}
                 />
               </div>
@@ -339,11 +450,12 @@ export function ApexPanel({
           </div>
 
           <pre className="text-[11px] mono leading-relaxed p-3 rounded-xl bg-black/35 border border-white/10 overflow-x-auto text-[var(--kodo-ink-muted)] whitespace-pre-wrap">
-            {`Gate: ${ticket.gate.status} (${ticket.gate.mult}×)
+            {`Profile: ${ticket.profileName}
+Gate: ${ticket.gate.status} (${ticket.gate.mult}×)
 ${ticket.gate.message}
 
 Structure: ${structureLabel(structure)}
-CSP strike hint: $${(apex.suggestedCspStrike ?? price * 0.95).toFixed(2)}
+CSP strike hint (CSP only): $${(apex.suggestedCspStrike ?? price * 0.95).toFixed(2)}
 
 SIZE
 ${JSON.stringify(ticket.size, null, 2)}
@@ -351,6 +463,7 @@ ${JSON.stringify(ticket.size, null, 2)}
 • ${ticket.rules.profitTake}
 • ${ticket.rules.dte}
 • ${ticket.rules.riskCap}
+• Freq: ${ticket.rules.frequency}
 Banned: ${ticket.rules.banned.join(", ")}`}
           </pre>
 

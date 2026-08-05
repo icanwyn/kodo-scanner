@@ -66,11 +66,18 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### APEX (options)
 
-- Scan engine attaches `apex` to each `ScoredSetup` from regime, VIX→IVR proxy, confluence, and side bias.  
-- Setup cards: **APEX chip** + **APEX size** ticket (1% risk, DD kill switch).  
-- Analysis page: full APEX panel; Grok prompt includes primary structure.  
-- Journal logs use `setupType: apex_*` and tags `apex`.  
-- Account prefs: browser `localStorage` key `kodo_apex_account_v1`.  
+Two profiles (toggle on `/apex` or any APEX panel):
+
+| Profile | Risk/trade | SAT sleeve | Planning path ($100k→$1M) |
+|---------|------------|------------|---------------------------|
+| **Compound** | 1% | 25% | ~8y at ~2.5%/mo (survivable) |
+| **Velocity** | 2.5% | 60% | ~3–4y at ~5.5%/mo (aggressive; higher ruin risk) |
+
+- Scan engine attaches `apex` (+ velocity primary) from regime, VIX→IVR proxy, confluence, side bias.  
+- Setup cards: chip + **APEX size**; mode switch changes contracts and primary.  
+- Journal tags: `compound` or `velocity`. Still **no 0DTE / naked short calls**.  
+- Prefs: `localStorage` key `kodo_apex_account_v1`.  
+
 
 
 ## Deploy (Vercel)

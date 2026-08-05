@@ -54,6 +54,9 @@ export interface ApexPlanDto {
 export interface ApexRecommendation {
   primary: ApexPlanDto | null;
   plans: ApexPlanDto[];
+  /** Aggressive profile primary (client may prefer when mode=velocity) */
+  velocityPrimary?: ApexPlanDto | null;
+  velocityPlans?: ApexPlanDto[];
   ivRankProxy: number;
   regimeLabel: MarketRegimeLabel;
   coreEligible: boolean;
